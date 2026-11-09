@@ -83,11 +83,11 @@ const SUPABASE_URL = "https://onnnegyvrczarwwtnvum.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lhrPBQbxZ9S5hopHTizGwQ_Cm0jSMGV";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+const supabaseClient = window.supabase
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : null;
 let isAdmin = false;
+let authStateCheck = 0;
 
 async function verifyAdmin() {
   if (!supabaseClient) return false;
@@ -106,17 +106,51 @@ async function verifyAdmin() {
 }
 
 async function refreshAuthStatus() {
-  isAdmin = await verifyAdmin();
+  const check = ++authStateCheck;
+  const allowed = await verifyAdmin();
+  if (check !== authStateCheck) return;
+  isAdmin = allowed;
+  if (!allowed && location.hash.slice(1) === "admin") {
+    go("entrar");
+    return;
+  }
   nav();
 }
 
+// Mantém todas as abas sincronizadas quando a sessão expira ou é encerrada.
+// As consultas ao Supabase são executadas fora do callback do Auth.
+function monitorAuthChanges() {
+  if (!supabaseClient) return;
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_OUT" || !session) {
+      ++authStateCheck;
+      isAdmin = false;
+      nav();
+      if (location.hash.slice(1) === "admin") go("entrar");
+      return;
+    }
+    if (["INITIAL_SESSION", "SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+      setTimeout(() => refreshAuthStatus(), 0);
+    }
+  });
+}
+
 async function logoutTramia() {
-  if (supabaseClient) await supabaseClient.auth.signOut();
+  ++authStateCheck;
   isAdmin = false;
   nav();
   if (location.hash.slice(1) === "inicio" || !location.hash) render();
   else go("inicio");
-  toast("Você saiu da sua conta.");
+  try {
+    if (supabaseClient) {
+      const { error } = await supabaseClient.auth.signOut({ scope: "local" });
+      if (error) throw error;
+    }
+    toast("Você saiu da sua conta.");
+  } catch (error) {
+    toast("Não foi possível encerrar a sessão. Tente novamente.");
+    refreshAuthStatus();
+  }
 }
 const SER=[
 {id:"amor-entre-mundos",t:"Amor Entre Mundos",g:"Romance, Drama, Fantasia",cl:"12",c:["#c026d3","#3b0f7a"],s:[12,10,8],free:3,rent:14.9,buy:19.9,pub:[1,1,0],sin:"Duas almas de mundos diferentes se encontram por acaso e descobrem um amor capaz de atravessar o tempo, os costumes e o destino."},
@@ -221,6 +255,7 @@ async function loginTramia(event) {
       toast("Esta conta não tem permissão administrativa.");
       return;
     }
+    ++authStateCheck;
     isAdmin = true;
     nav();
     toast("Login realizado com sucesso!");
@@ -328,6 +363,7 @@ async function render() {
 $("#q").oninput=e=>{term=e.target.value;if(route!="inicio")go("inicio");else render()};
 addEventListener("hashchange",render);addEventListener("keydown",e=>{if(e.key=="Escape"){closeMd();if(P.on)closePl()}});
 render();
+monitorAuthChanges();
 refreshAuthStatus();
 </script>
 </body>
