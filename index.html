@@ -78,6 +78,7 @@ input[type=range]{padding:0;width:100%;accent-color:var(--red)}
 <main id="app"></main>
 <div id="pl" role="dialog" aria-label="Player"></div>
 <div id="md"></div>
+<script>
 const SUPABASE_URL = "https://onnnegyvrczarwwtnvum.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lhrPBQbxZ9S5hopHTizGwQ_Cm0jSMGV";
@@ -85,7 +86,38 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lhrPBQbxZ9S5hopHTizGwQ_Cm0jSMGV
 const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
-);<script>
+);
+let isAdmin = false;
+
+async function verifyAdmin() {
+  if (!supabaseClient) return false;
+  try {
+    const { data: { user }, error } = await supabaseClient.auth.getUser();
+    if (error || !user) return false;
+    const { data: record, error: permissionError } = await supabaseClient
+      .from("tramia_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    return !permissionError && !!record;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function refreshAuthStatus() {
+  isAdmin = await verifyAdmin();
+  nav();
+}
+
+async function logoutTramia() {
+  if (supabaseClient) await supabaseClient.auth.signOut();
+  isAdmin = false;
+  nav();
+  if (location.hash.slice(1) === "inicio" || !location.hash) render();
+  else go("inicio");
+  toast("Você saiu da sua conta.");
+}
 const SER=[
 {id:"amor-entre-mundos",t:"Amor Entre Mundos",g:"Romance, Drama, Fantasia",cl:"12",c:["#c026d3","#3b0f7a"],s:[12,10,8],free:3,rent:14.9,buy:19.9,pub:[1,1,0],sin:"Duas almas de mundos diferentes se encontram por acaso e descobrem um amor capaz de atravessar o tempo, os costumes e o destino."},
 {id:"eco-neon",t:"Eco Neon",g:"Ficção científica",cl:"14",c:["#7c3aed","#e11d48"],s:[8,6],free:3,rent:14.9,buy:19.9,ia:1,sin:"Em uma cidade onde memórias viram moeda, uma hacker descobre que a sua própria foi vendida."},
@@ -110,7 +142,16 @@ function toast(m){const e=document.createElement("div");e.className="toast";e.te
 function go(r){location.hash=r}
 function cover(s,tag){return `<div class="cv" tabindex="0" role="link" style="${grad(s)}" onclick="go('${s.id}')" onkeydown="if(event.key=='Enter')go('${s.id}')">${art(s)}${tag?`<span class="tag">${tag}</span>`:""}<div class="in">${s.t}<small>${s.g} · ${total(s)} eps</small></div></div>`}
 function rowOf(t,l,tag){return l.length?`<h2>${t}</h2><div class="row">${l.map(s=>cover(s,tag)).join("")}</div>`:""}
-function nav(){const it=[["inicio","Início"],["biblioteca","Minha Biblioteca"],["entrar","Entrar"]];$("#nav").innerHTML=it.map(([k,v])=>`<button class="${route==k?"on":""}" onclick="go('${k}')">${v}</button>`).join("")}
+function nav(){
+  const it = [["inicio","Início"],["biblioteca","Minha Biblioteca"]];
+  if (isAdmin) it.push(["admin","Admin"]);
+  else it.push(["entrar","Entrar"]);
+  $("#nav").innerHTML = it.map(([k,v]) =>
+    `<button class="${route==k?"on":""}" onclick="go('${k}')">${v}</button>`
+  ).join("") + (isAdmin
+    ? '<button onclick="logoutTramia()">Sair</button>'
+    : "");
+}
 function home(){
  const q=term.trim().toLowerCase(),L=q?SER.filter(s=>(s.t+s.g).toLowerCase().includes(q)):SER,h=SER[0];
  if(q)return `<h2>Resultados para “${term}”</h2>${L.length?`<div class="row">${L.map(s=>cover(s)).join("")}</div>`:"<p>Nenhuma série encontrada.</p>"}`;
@@ -135,8 +176,65 @@ function lib(){
  return `<h1>Minha Biblioteca</h1><div class="note">Dados salvos apenas neste navegador. Sem conta real ou pagamento.</div>
  <h2>Compradas e alugadas</h2>${act.length?`<div class="row">${act.map(s=>`<div>${cover(s)}<small>${exp(s)}</small></div>`).join("")}</div>`:"<p style='color:var(--mut)'>Nada por aqui ainda. Libere o acesso de teste em uma série.</p>"}
  ${rowOf("Favoritas",S.fav.map(get).filter(Boolean))}${rowOf("Continue assistindo / histórico",Object.keys(S.prog).map(get).filter(Boolean))}`}
-function auth(){return `<div class="modal" style="margin:30px auto"><h1 style="margin-top:0">Entrar na Tramia</h1><div class="note">Interface demonstrativa. Nenhuma autenticação real: será integrada depois no backend.</div>
- <div style="display:grid;gap:10px"><input type="email" placeholder="E-mail" aria-label="E-mail"><input type="password" placeholder="Senha" aria-label="Senha"><button class="btn" onclick="toast('Login ainda não integrado')">Entrar</button><button class="btn s" onclick="toast('Cadastro ainda não integrado')">Criar conta</button><a href="#entrar" onclick="toast('Recuperação de senha ainda não integrada');return false" style="color:var(--mut);font-size:14px">Esqueci minha senha</a></div></div>`}
+function auth() {
+  return `<section class="modal" style="margin:30px auto">
+    <h1 style="margin-top:0">Entrar na Tramia</h1>
+    <p style="color:var(--mut)">Acesso administrativo com sua conta cadastrada.</p>
+    <form onsubmit="loginTramia(event)" style="display:grid;gap:10px">
+      <input id="tramia-email" type="email" placeholder="E-mail"
+             autocomplete="username" required aria-label="E-mail">
+      <input id="tramia-senha" type="password" placeholder="Senha"
+             autocomplete="current-password" required aria-label="Senha">
+      <button class="btn" type="submit" id="tramia-login-btn">Entrar</button>
+    </form>
+  </section>`;
+}
+
+async function loginTramia(event) {
+  if (event) event.preventDefault();
+  const email = document.getElementById("tramia-email").value.trim();
+  const password = document.getElementById("tramia-senha").value;
+  const button = document.getElementById("tramia-login-btn");
+  if (!email || !password) {
+    toast("Informe seu e-mail e senha.");
+    return;
+  }
+  if (!supabaseClient) {
+    toast("Não foi possível carregar a conexão com o Supabase.");
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Entrando...";
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) {
+      toast("Não foi possível entrar. Confira seu e-mail e senha.");
+      return;
+    }
+    const allowed = await verifyAdmin();
+    if (!allowed) {
+      await supabaseClient.auth.signOut();
+      isAdmin = false;
+      toast("Esta conta não tem permissão administrativa.");
+      return;
+    }
+    isAdmin = true;
+    nav();
+    toast("Login realizado com sucesso!");
+    go("admin");
+  } catch (error) {
+    toast("Erro ao conectar com o Supabase.");
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+      button.textContent = "Entrar";
+    }
+  }
+}
+
 function adminOld(){
  return `<h1>Painel administrativo</h1><div class="note">Visual demonstrativo e sem proteção. Em produção exigirá autenticação e autorização de administrador no servidor. Pedidos e faturamento são exemplos.</div>
  <div class="g2"><div class="box"><small>Faturamento (exemplo)</small><div class="price">R$ 1.284,50</div></div><div class="box"><small>Usuários (exemplo)</small><div class="price">342</div></div><div class="box"><small>Aluguéis ativos (exemplo)</small><div class="price">27</div></div></div>
@@ -171,7 +269,7 @@ function draw(){const s=P.s,lk=locked(s,P.se,P.ep),n=idx(s,P.se,P.ep)+1;
 let AD={sid:"amor-entre-mundos",se:0};
 const EPT=["O Encontro","Novos Laços","O Segredo","A Revelação","Conflitos"];
 const pubOf=(s,i)=>!s.pub||s.pub[i]===undefined?true:!!s.pub[i];
-function adm(f,a){const s=get(AD.sid);
+function adm(f,a){if(!isAdmin)return;const s=get(AD.sid);
  if(f=="tg"){s.ov=s.ov||{};s.ov[a]=paid(s,a)}
  if(f=="se")AD.se=a;
  if(f=="sel"){AD.sid=a;AD.se=0}
@@ -183,9 +281,9 @@ function adm(f,a){const s=get(AD.sid);
 function admin(){const s=get(AD.sid),se=Math.min(AD.se,s.s.length-1),side=[["▣","Painel"],["▤","Séries e Doramas",1],["◫","Episódios"],["▭","Temporadas"],["◈","Categorias"],["☺","Usuários"],["▬","Pedidos e Pagamentos"],["↗","Relatórios"],["▨","Banners e Destaques"],["⚙","Configurações"]];
  const T=m=>`toast('${m}')`;
  return `<div class="adm"><aside><div class="logo" style="margin-bottom:18px" onclick="go('inicio')"><i>▶</i>Tramia</div><div class="sb">${side.map(x=>`<button class="sbi ${x[2]?"on":""}" onclick="${x[2]?"":T("Seção demonstrativa")}"><span>${x[0]}</span>${x[1]}</button>`).join("")}</div><div class="pro"><b style="font-size:20px">♛ Tramia Pro</b><p style="font-size:14px;color:var(--mut)">Sua plataforma de doramas e séries curtas com controle total.</p><button class="btn" style="width:100%" onclick="${T("Planos ainda não existem")}">Ver planos</button></div></aside>
- <section><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input placeholder="🔍 Buscar no painel..." aria-label="Buscar no painel" style="flex:1;min-width:160px;max-width:420px"><span style="flex:1"></span><select aria-label="Série" style="width:auto" onchange="adm('sel',this.value)">${SER.map(x=>`<option value="${x.id}" ${x.id==s.id?"selected":""}>${x.t}</option>`).join("")}</select><span class="av">E</span></div>
+ <section><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input placeholder="🔍 Buscar no painel..." aria-label="Buscar no painel" style="flex:1;min-width:160px;max-width:420px"><span style="flex:1"></span><select aria-label="Série" style="width:auto" onchange="adm('sel',this.value)">${SER.map(x=>`<option value="${x.id}" ${x.id==s.id?"selected":""}>${x.t}</option>`).join("")}</select><button class="btn s" type="button" onclick="logoutTramia()">Sair</button><span class="av">E</span></div>
  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><span style="color:var(--mut);flex:1">⌂ › Séries e Doramas › <b style="color:#fff">Editar Série</b></span><button class="btn s" onclick="go('${s.id}')">↗ Visualizar na plataforma</button><button class="btn" onclick="${T("Alterações salvas só nesta sessão")}">✔ Salvar alterações</button></div>
- <div class="note">Painel demonstrativo, sem autenticação nem banco de dados. As edições valem apenas nesta sessão.</div>
+ <div class="note">Acesso administrativo validado pelo Supabase. As edições de séries e episódios ainda são demonstrativas e não são salvas no banco de dados.</div>
  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px"><div class="f2"><div class="cv" style="${grad(s)};flex:none;width:100%">${art(s)}<div class="in" style="font:italic 700 20px Georgia,serif">${s.t}</div></div><div><h2 style="margin:0 0 4px">Editar Série</h2><label class="lb">Título da série</label><input value="${s.t}" oninput="get('${s.id}').t=this.value"><label class="lb">Categoria(s)</label><div class="chips">${s.g.split(", ").map(g=>`<span class="chip">${g} ✕</span>`).join("")}</div><label class="lb">Sinopse</label><textarea rows="4" maxlength="500" oninput="get('${s.id}').sin=this.value;document.getElementById('cnt').textContent=this.value.length+'/500'">${s.sin}</textarea><small id="cnt" style="color:var(--mut)">${s.sin.length}/500</small></div></div>
  <div class="pn" style="margin-top:0"><h3>🏷 Preços da Série</h3><label class="lb">Preço de aluguel (R$)</label><input type="number" step=".1" value="${s.rent}" onchange="get('${s.id}').rent=+this.value"><label class="lb">Duração do aluguel</label><select><option>24 horas</option><option selected>48 horas</option><option>72 horas</option></select><label class="lb">Preço de compra (R$)</label><input type="number" step=".1" value="${s.buy}" onchange="get('${s.id}').buy=+this.value"><div class="note" style="color:#e9d5ff;background:#8b3dff22;border-color:#8b3dff66"><b>Dica:</b> mantenha o valor da compra mais vantajoso para incentivar a venda.</div></div></div>
  <div class="pn" style="display:flex;gap:6px;flex-wrap:wrap">${["Temporadas","Episódios","Detalhes","Destaque","Avançado"].map((x,i)=>`<button class="sbi ${i?"":"on"}" onclick="${i?T("Aba demonstrativa"):""}">${x}</button>`).join("")}</div>
@@ -194,13 +292,43 @@ function admin(){const s=get(AD.sid),se=Math.min(AD.se,s.s.length-1),side=[["▣
  <div class="drop"><div class="av" style="width:64px;height:64px;font-size:26px;background:#2a1146">☁</div><div style="flex:1;min-width:200px"><b style="font-size:18px">Enviar vídeo do episódio</b><p style="margin:4px 0;color:var(--mut);font-size:14px">Arraste e solte o arquivo aqui ou clique para selecionar<br>Formatos: MP4, MOV (máx. 2 GB por episódio)</p></div><button class="btn" onclick="${T("Upload ainda não integrado a um serviço de vídeo")}">Enviar vídeo</button></div></div></section></div>`}
 function adminAccessDenied(){return `<section class="modal" style="margin:42px auto;text-align:center"><h1>Área administrativa restrita</h1><p style="color:var(--mut)">O painel só será liberado para a conta administradora após a configuração da autenticação segura no Supabase. Enquanto a integração não estiver concluída, ninguém poderá acessar o painel pela versão pública.</p><button class="btn" onclick="go('inicio')">Voltar ao início</button></section>`}
 /* router */
-function render(){
- const h=location.hash.slice(1)||"inicio";route=h;nav();document.querySelector("header").style.display="";const a=$("#app"),s=get(h);
- a.innerHTML=s?serie(s):h=="biblioteca"?lib():h=="entrar"?auth():h=="admin"?adminAccessDenied():home();
- document.title=s?s.t+" — Tramia":"TRAMIA | Séries curtas";scrollTo(0,0)}
+let renderCycle = 0;
+async function render() {
+  const cycle = ++renderCycle;
+  const h = location.hash.slice(1) || "inicio";
+  route = h;
+  const a = $("#app");
+  const s = get(h);
+  const header = document.querySelector("header");
+  document.title = s ? s.t + " — Tramia" : "TRAMIA | Séries curtas";
+  if (h === "admin") {
+    header.style.display = "";
+    a.innerHTML = '<div class="modal" style="margin:30px auto">Verificando acesso administrativo...</div>';
+    const allowed = await verifyAdmin();
+    if (cycle !== renderCycle || location.hash.slice(1) !== "admin") return;
+    isAdmin = allowed;
+    nav();
+    if (!allowed) {
+      toast("Faça login com uma conta administradora.");
+      go("entrar");
+      return;
+    }
+    header.style.display = "none";
+    a.innerHTML = admin();
+  } else {
+    header.style.display = "";
+    nav();
+    a.innerHTML = s ? serie(s)
+      : h === "biblioteca" ? lib()
+      : h === "entrar" ? auth()
+      : home();
+  }
+  window.scrollTo(0, 0);
+}
 $("#q").oninput=e=>{term=e.target.value;if(route!="inicio")go("inicio");else render()};
 addEventListener("hashchange",render);addEventListener("keydown",e=>{if(e.key=="Escape"){closeMd();if(P.on)closePl()}});
 render();
+refreshAuthStatus();
 </script>
 </body>
 </html>
