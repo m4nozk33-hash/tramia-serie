@@ -68,7 +68,7 @@ input[type=range]{padding:0;width:100%;accent-color:var(--red)}
 .seg{display:flex;gap:6px}.seg button{flex:1;padding:8px;border-radius:10px;background:#ffffff14}.seg button.on{background:var(--red)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1d1826;border:1px solid var(--line);padding:10px 16px;border-radius:99px;z-index:90;font-size:14px}
 </style>
-</head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
 <body>
 <header>
   <span class="logo" onclick="go('inicio')"><i>▶</i>Tramia</span>
@@ -78,7 +78,14 @@ input[type=range]{padding:0;width:100%;accent-color:var(--red)}
 <main id="app"></main>
 <div id="pl" role="dialog" aria-label="Player"></div>
 <div id="md"></div>
-<script>
+const SUPABASE_URL = "https://onnnegyvrczarwwtnvum.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lhrPBQbxZ9S5hopHTizGwQ_Cm0jSMGV";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);<script>
 const SER=[
 {id:"amor-entre-mundos",t:"Amor Entre Mundos",g:"Romance, Drama, Fantasia",cl:"12",c:["#c026d3","#3b0f7a"],s:[12,10,8],free:3,rent:14.9,buy:19.9,pub:[1,1,0],sin:"Duas almas de mundos diferentes se encontram por acaso e descobrem um amor capaz de atravessar o tempo, os costumes e o destino."},
 {id:"eco-neon",t:"Eco Neon",g:"Ficção científica",cl:"14",c:["#7c3aed","#e11d48"],s:[8,6],free:3,rent:14.9,buy:19.9,ia:1,sin:"Em uma cidade onde memórias viram moeda, uma hacker descobre que a sua própria foi vendida."},
