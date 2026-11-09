@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TRAMIA — Séries curtas verticais</title>
-<meta name="description" content="Protótipo da Tramia: séries curtas em vídeo vertical 9:16.">
+<title>TRAMIA | Séries curtas</title>
+<meta name="description" content="Tramia — séries curtas para assistir online.">
 <style>
 :root{--bg:#0a0710;--card:#130d1c;--line:#2e1f44;--tx:#f4f2f7;--mut:#a79bb8;--red:#e11d48;--pur:#8b3dff;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -103,7 +103,7 @@ function toast(m){const e=document.createElement("div");e.className="toast";e.te
 function go(r){location.hash=r}
 function cover(s,tag){return `<div class="cv" tabindex="0" role="link" style="${grad(s)}" onclick="go('${s.id}')" onkeydown="if(event.key=='Enter')go('${s.id}')">${art(s)}${tag?`<span class="tag">${tag}</span>`:""}<div class="in">${s.t}<small>${s.g} · ${total(s)} eps</small></div></div>`}
 function rowOf(t,l,tag){return l.length?`<h2>${t}</h2><div class="row">${l.map(s=>cover(s,tag)).join("")}</div>`:""}
-function nav(){const it=[["inicio","Início"],["biblioteca","Minha Biblioteca"],["entrar","Entrar"],["admin","Admin"]];$("#nav").innerHTML=it.map(([k,v])=>`<button class="${route==k?"on":""}" onclick="go('${k}')">${v}</button>`).join("")}
+function nav(){const it=[["inicio","Início"],["biblioteca","Minha Biblioteca"],["entrar","Entrar"]];$("#nav").innerHTML=it.map(([k,v])=>`<button class="${route==k?"on":""}" onclick="go('${k}')">${v}</button>`).join("")}
 function home(){
  const q=term.trim().toLowerCase(),L=q?SER.filter(s=>(s.t+s.g).toLowerCase().includes(q)):SER,h=SER[0];
  if(q)return `<h2>Resultados para “${term}”</h2>${L.length?`<div class="row">${L.map(s=>cover(s)).join("")}</div>`:"<p>Nenhuma série encontrada.</p>"}`;
@@ -185,11 +185,12 @@ function admin(){const s=get(AD.sid),se=Math.min(AD.se,s.s.length-1),side=[["▣
  <div class="pn"><h3>▤ Temporadas <button class="btn" onclick="adm('ns')">＋ Nova Temporada</button></h3>${s.s.map((n,i)=>`<div class="srow ${i==se?"on":""}" onclick="adm('se',${i})"><span style="color:var(--mut)">⋮⋮</span><b>Temporada ${i+1}</b><span style="color:var(--mut)">${n} episódios</span><span><span class="pill ${pubOf(s,i)?"ok":"dr"}">● ${pubOf(s,i)?"Publicada":"Rascunho"}</span></span><span><button class="ic" aria-label="Editar" onclick="event.stopPropagation();${T("Edição de temporada ainda não integrada")}">✎</button><button class="ic d" aria-label="Excluir" onclick="event.stopPropagation();adm('ds',${i})">🗑</button></span></div>`).join("")}</div>
  <div class="pn"><h3><span>🎬 Episódios – Temporada ${se+1}</span><button class="btn" onclick="adm('ne')">＋ Adicionar Episódio</button></h3><div class="tbl"><table><tr><th>#</th><th>Capa</th><th>Título do Episódio</th><th>Duração</th><th>Gratuito</th><th>Status</th><th>Ações</th></tr>${Array.from({length:s.s[se]},(_,i)=>{const gi=idx(s,se,i),pd=paid(s,gi);return `<tr><td>${i+1}</td><td><div class="th" style="${grad(s)}">${art(s)}</div></td><td>Episódio ${i+1} – ${EPT[i]||"Sem título"}</td><td>◷ 03:${String(8+(i*7)%12).padStart(2,"0")}</td><td><button class="tg ${pd?"":"on"}" role="switch" aria-checked="${!pd}" aria-label="Gratuito" onclick="adm('tg',${gi})"></button></td><td><span class="pill ${pd?"pd":"ok"}">${pd?"🔒 Pago":"● Publicado"}</span></td><td style="white-space:nowrap"><button class="ic" aria-label="Editar" onclick="${T("Edição de episódio ainda não integrada")}">✎</button><button class="ic" aria-label="Duplicar" onclick="adm('ne')">⧉</button><button class="ic d" aria-label="Excluir" onclick="adm('de')">🗑</button></td></tr>`}).join("")}</table></div>
  <div class="drop"><div class="av" style="width:64px;height:64px;font-size:26px;background:#2a1146">☁</div><div style="flex:1;min-width:200px"><b style="font-size:18px">Enviar vídeo do episódio</b><p style="margin:4px 0;color:var(--mut);font-size:14px">Arraste e solte o arquivo aqui ou clique para selecionar<br>Formatos: MP4, MOV (máx. 2 GB por episódio)</p></div><button class="btn" onclick="${T("Upload ainda não integrado a um serviço de vídeo")}">Enviar vídeo</button></div></div></section></div>`}
+function adminAccessDenied(){return `<section class="modal" style="margin:42px auto;text-align:center"><h1>Área administrativa restrita</h1><p style="color:var(--mut)">O painel só será liberado para a conta administradora após a configuração da autenticação segura no Supabase. Enquanto a integração não estiver concluída, ninguém poderá acessar o painel pela versão pública.</p><button class="btn" onclick="go('inicio')">Voltar ao início</button></section>`}
 /* router */
 function render(){
- const h=location.hash.slice(1)||"inicio";route=h;nav();document.querySelector("header").style.display=h=="admin"?"none":"";const a=$("#app"),s=get(h);
- a.innerHTML=s?serie(s):h=="biblioteca"?lib():h=="entrar"?auth():h=="admin"?admin():home();
- document.title=s?s.t+" — Tramia":"TRAMIA — Séries curtas verticais";scrollTo(0,0)}
+ const h=location.hash.slice(1)||"inicio";route=h;nav();document.querySelector("header").style.display="";const a=$("#app"),s=get(h);
+ a.innerHTML=s?serie(s):h=="biblioteca"?lib():h=="entrar"?auth():h=="admin"?adminAccessDenied():home();
+ document.title=s?s.t+" — Tramia":"TRAMIA | Séries curtas";scrollTo(0,0)}
 $("#q").oninput=e=>{term=e.target.value;if(route!="inicio")go("inicio");else render()};
 addEventListener("hashchange",render);addEventListener("keydown",e=>{if(e.key=="Escape"){closeMd();if(P.on)closePl()}});
 render();
