@@ -119,7 +119,7 @@ function authPage(){
  (authMode==='signup'?'<label>Nome<input type="text" id="auth-name" autocomplete="name" maxlength="90" required></label>':'')+
  '<label>E-mail<input type="email" id="auth-email" autocomplete="email" required></label>'+
  '<label>Senha<input type="password" id="auth-password" minlength="8" autocomplete="'+(authMode==='signup'?'new-password':'current-password')+'" required></label>'+
- '<button type="submit" class="btn">'+(authMode==='signup'?'Cadastrar':'Entrar')+'</button></form>'+
+ '<button type="submit" class="btn">'+(authMode==='signup'?'Cadastrar':'Entrar')+'</button></form><p id="auth-feedback" class="notice" role="alert" hidden></p>'+
  '<div style="margin-top:18px"><a class="text-btn" href="#recuperar">Esqueci minha senha</a></div></div>';
 }
 async function submitAuth(){
@@ -133,7 +133,16 @@ async function submitAuth(){
   toast('Conta criada com sucesso!');
  } else{
   r=await client.auth.signInWithPassword({email,password});
-  if(r.error)return toast('Não foi possível entrar. Confira seu e-mail e senha.');
+  if(r.error){
+   const code=String(r.error.code||'');
+   const message=code==='email_not_confirmed'?'Confirme seu e-mail antes de entrar. Verifique a caixa de entrada e o spam.':
+    code==='invalid_credentials'?'E-mail ou senha incorretos. Se esqueceu a senha, use “Esqueci minha senha”.':
+    code==='over_request_rate_limit'?'Muitas tentativas de login. Aguarde um pouco antes de tentar novamente.':
+    'Falha ao entrar na conta. Tente novamente ou use “Esqueci minha senha”.';
+   const feedback=document.getElementById('auth-feedback');
+   if(feedback){feedback.hidden=false;feedback.textContent=message;}
+   return toast(message);
+  }
   toast('Login realizado!');
  }
  await restoreAuth();
@@ -216,8 +225,12 @@ function render(){
  if(!$('#app'))return;
  nav();
  if(!ready){$('#app').innerHTML='<div class="panel">Carregando Tramia...</div>';return;}
- if(dataError){$('#app').innerHTML='<div class="notice">'+h(dataError)+' <button class="btn small" onclick="restoreAuth()">Tentar novamente</button></div>';return;}
  const route=decodeURIComponent(location.hash.slice(1)||'inicio');
+ // Erros do catálogo não devem impedir o acesso ao login ou à recuperação de senha.
+ if(dataError && route!=='entrar' && route!=='recuperar'){
+  $('#app').innerHTML='<div class="notice">'+h(dataError)+' <button class="btn small" onclick="restoreAuth()">Tentar novamente</button> <a class="btn secondary small" href="#entrar">Entrar na minha conta</a></div>';
+  return;
+ }
  let body='';
  if(route==='inicio')body=homePage();
  else if(route==='series')body=browsePage();
