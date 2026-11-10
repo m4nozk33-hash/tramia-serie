@@ -120,8 +120,11 @@ function adminSeasons(){
 }
 async function createSeason(seriesId){
  let id=seriesId;
- if(!id){id=prompt('Cole o ID da série onde deseja cadastrar a temporada:\n'+D.series.map(s=>s.title+': '+s.id).join('\n'))}
- if(!id)return;
+ if(!id){
+  if(!D.series.length)return toast('Cadastre uma série antes de criar temporadas.');
+  $('#dialog').innerHTML='<div class="overlay" onclick="if(event.target===this)closeDialog()"><div class="dialog"><h2>Nova temporada</h2><p>Selecione a série:</p><select id="choose-series" style="width:100%">'+D.series.map(s=>'<option value="'+s.id+'">'+h(s.title)+'</option>').join('')+'</select><div class="flex" style="margin-top:18px"><button class="btn" onclick="const id=document.getElementById(\'choose-series\').value;closeDialog();createSeason(id)">Criar temporada</button><button class="btn secondary" onclick="closeDialog()">Cancelar</button></div></div></div>';return;
+ }
+
  if(!seriesOf(id))return toast('Selecione uma série cadastrada.');
  const next=1+Math.max(0,...seriesSeasons(id).map(s=>s.number));
  const r=await client.from('tramia_seasons').insert({series_id:id,number:next,title:'',published:false});
@@ -157,8 +160,11 @@ function adminEpisodes(){
 }
 async function createEpisode(seasonId){
  let id=seasonId;
- if(!id)id=prompt('Cole o ID da temporada:\n'+D.seasons.map(s=>(seriesOf(s.series_id)?.title||'')+' T'+s.number+': '+s.id).join('\n'));
- if(!id)return;
+ if(!id){
+  if(!D.seasons.length)return toast('Cadastre uma temporada antes de criar episódios.');
+  $('#dialog').innerHTML='<div class="overlay" onclick="if(event.target===this)closeDialog()"><div class="dialog"><h2>Novo episódio</h2><p>Selecione a temporada:</p><select id="choose-season" style="width:100%">'+D.seasons.map(s=>'<option value="'+s.id+'">'+h(seriesOf(s.series_id)?.title||'')+' — Temporada '+s.number+'</option>').join('')+'</select><div class="flex" style="margin-top:18px"><button class="btn" onclick="const id=document.getElementById(\'choose-season\').value;closeDialog();createEpisode(id)">Criar episódio</button><button class="btn secondary" onclick="closeDialog()">Cancelar</button></div></div></div>';return;
+ }
+
  if(!seasonOf(id))return toast('Temporada não encontrada.');
  const next=1+Math.max(0,...seasonEps(id).map(x=>x.number));
  const r=await client.from('tramia_episodes').insert({season_id:id,number:next,title:'Episódio '+next,published:false}).select('id').single();
