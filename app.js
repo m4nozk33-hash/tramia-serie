@@ -34,7 +34,7 @@ function poster(x){const u=src(x.cover_url);return '<div class="poster">'+(u?'<i
 function card(x){return '<button class="cover" onclick="navigate(\'serie/'+x.id+'\')">'+poster(x)+'<div class="cover-title">'+h(x.title)+'</div><div class="cover-sub">'+h(x.kind==='dorama'?'Dorama':'Série')+' · '+countEps(x.id)+' episódios</div></button>'}
 function empty(title,desc,action){return '<div class="empty"><div class="empty-icon">✦</div><h2>'+h(title)+'</h2><p>'+h(desc)+'</p>'+(action||'')+'</div>'}
 function grid(list){return list.length?'<div class="grid">'+list.map(card).join('')+'</div>':empty('Nenhuma série encontrada','O catálogo ainda não tem títulos com esse filtro.')}
-function visibleSeries(){return isAdmin?D.series.filter(x=>x.published):D.series}
+function visibleSeries(){return D.series.filter(x=>x.published)}
 function homePage(){
  const all=visibleSeries();
  const b=[...D.banners].filter(x=>x.active).sort((a,b)=>a.sort_order-b.sort_order)[0];
@@ -58,7 +58,7 @@ function browsePage(){
 }
 function searchGenre(value){term=value;$('#search').value=value;navigate('series')}
 function seriesPage(id){
- const x=seriesOf(id);if(!x)return empty('Série não encontrada','A série pode ter sido removida ou ainda não está publicada.');
+ const x=seriesOf(id);if(!x||(!x.published&&!isAdmin))return empty('Série não encontrada','A série pode ter sido removida ou ainda não está publicada.');
  const seasons=seriesSeasons(x.id).filter(s=>s.published||isAdmin);
  const access=canWatch(x.id);
  return '<div class="detail"><div>'+poster(x)+'</div><div><div class="eyebrow">'+(x.kind==='dorama'?'Dorama':'Série')+'</div>'+
@@ -151,7 +151,7 @@ function recoveryPage(){
 async function sendRecovery(){
  if(!client)return toast('Serviço indisponível.');
  recoveryEmail=$('#recovery-email').value.trim().toLowerCase();
- const url=location.origin+location.pathname+'#recuperar';
+ const url=location.origin+location.pathname;
  const r=await client.auth.resetPasswordForEmail(recoveryEmail,{redirectTo:url});
  if(r.error){recoveryNotice='Não foi possível enviar. Verifique a configuração de e-mails da plataforma.';toast('Erro: '+r.error.message);}
  else{recoveryNotice='Se o e-mail estiver cadastrado, enviaremos as instruções para recuperar sua senha. Verifique também o spam.';toast('Verifique seu e-mail.');}
